@@ -11,7 +11,7 @@ x-aliases:
         - .:/home/circleci/app
         - .composer:/home/circleci/.composer
         - .scenarios.lock:/home/circleci/app/.scenarios.lock
-      tmpfs: [ '/home/circleci/app/tmp:uid=3434,gid=3434,exec', '/home/circleci/app/tests/vendor:uid=3434,gid=3434,exec' ]
+      tmpfs: [ '/home/circleci/app/tests/vendor:uid=3434,gid=3434,exec' ]
       depends_on:
         - agent
         - ddagent_integration
@@ -36,6 +36,11 @@ x-aliases:
         - seccomp:unconfined
       # Privileged is requires to run some pcntl tests locally.
       # privileged: true
+
+  - &build_php_service
+      working_dir: '/home/circleci/app'
+      volumes:
+        - .:/home/circleci/app
 
 services:
   # --- Alpine (Legacy) ---
@@ -64,7 +69,7 @@ services:
   '8.0-buster-shared-ext': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0-shared-ext' }
   '8.1-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.1_buster' }
   'php-master-buster': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-master_buster' }
-  # --- CentOS 6 ---
+  # --- CentOS ---
   '5.4-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-5.4_centos-6' }
   '5.5-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-5.5_centos-6' }
   '5.6-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-5.6_centos-6' }
@@ -73,6 +78,7 @@ services:
   '7.2-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.2_centos-6' }
   '7.3-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.3_centos-6' }
   '7.4-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-7.4_centos-6' }
+  '7.4-centos7': { <<: *build_php_service, image: 'datadog/dd-trace-ci:php-7.4_centos-7' }
   '8.0-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.0_centos-6' }
   '8.1-centos6': { <<: *base_php_service, image: 'datadog/dd-trace-ci:php-8.1_centos-6' }
 
