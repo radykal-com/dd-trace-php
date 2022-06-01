@@ -4,6 +4,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <stdlib.h>
 
 /* These functions are inline, but need to go in a translation unit somewhere
  * to avoid certain linker errors. The extern inline handles this.
@@ -38,8 +39,7 @@ int dogstatsd_client_getaddrinfo(struct addrinfo **result, const char *host,
   return getaddrinfo(host, port, &hints, result);
 }
 
-dogstatsd_client dogstatsd_client_ctor(struct addrinfo *addrs, char *buffer,
-                                       int buffer_len, const char *const_tags) {
+dogstatsd_client dogstatsd_client_ctor(struct addrinfo *addrs, int buffer_len, const char *const_tags) {
   dogstatsd_client client = dogstatsd_client_default_ctor();
 
   if (!addrs) {
@@ -48,7 +48,7 @@ dogstatsd_client dogstatsd_client_ctor(struct addrinfo *addrs, char *buffer,
   client.addresslist = addrs;
 
   struct addrinfo *addr = NULL;
-  if (!buffer || buffer_len < 0) {
+  if (buffer_len < 0) {
     return client;
   }
 
@@ -60,6 +60,14 @@ dogstatsd_client dogstatsd_client_ctor(struct addrinfo *addrs, char *buffer,
     }
   }
 
+  if (addr->ai_family == PF_UNIX) {
+    if (!bind(client.socket, addr->ai_addr, addr->ai_addrlen)) {
+      close(client.socket);
+      client.socket = -1;
+      return client;
+    }
+  }
+
   if (!const_tags) {
     const_tags = "";
   }
@@ -67,7 +75,7 @@ dogstatsd_client dogstatsd_client_ctor(struct addrinfo *addrs, char *buffer,
   client.const_tags = const_tags;
   client.const_tags_len = strlen(const_tags);
   client.address = addr;
-  client.msg_buffer = buffer;
+  client.msg_buffer = malloc(buffer_len);
   client.msg_buffer_len = buffer_len;
 
   return client;
@@ -77,12 +85,20 @@ void dogstatsd_client_dtor(dogstatsd_client *client) {
   if (!client) {
     return;
   }
+  if (client->msg_buffer) {
+    free(client->msg_buffer);
+  }
   if (client->socket != -1) {
     close(client->socket);
     client->socket = -1;
   }
   if (client->addresslist) {
-    freeaddrinfo(client->addresslist);
+    if (client->address->ai_family == PF_UNIX) {
+      free(client->address->ai_addr);
+      free(client->addresslist);
+    } else {
+      freeaddrinfo(client->addresslist);
+    }
     client->addresslist = NULL;
   }
 }
